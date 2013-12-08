@@ -50,23 +50,17 @@ def ping(address, port=PORT, timeout=TIMEOUT, logging=LOGGING):
         if result is not ERROR:
             last_rtt = rtt
             last_ttl = ttl
-    if result is ERROR:
-        return ERROR, ERROR
-    last_ttl = ttl / 2
-    while True:
-        difference = (last_ttl - ttl) // 2
-        if difference == 0:
-            break
-        if result is TOOLOW:
-            temp = ttl
-            ttl = ttl - difference
-            last_ttl = temp
-        else:
-            temp = ttl
-            ttl = ttl + difference
-            last_ttl = temp
+    min_ttl = ttl / 2
+    max_ttl = ttl
+    while min_ttl < max_ttl and result is not ERROR:
+        ttl = (min_ttl + max_ttl) // 2
         result, rtt, _ = getRTT(address, ttl, port, timeout, logging)
-        if result is not ERROR:
+        elif result is TOOLOW:
+            min_ttl = ttl + 1
+            last_rtt = rtt
+            last_ttl = ttl
+        elif result is OK:
+            max_ttl = ttl - 1
             last_rtt = rtt
             last_ttl = ttl
     result, rtt, ttl = getRTT(address, ttl, port, timeout, logging)
@@ -120,7 +114,6 @@ def getRTT(address, ttl=TTL, port=PORT, timeout=TIMEOUT, logging=LOGGING):
                 log('Got response from {0}'.format(response), logging)
                 result = TOOLOW
         except:
-            log('Got response from {0}'.format(addr[0]), logging)
             if addr[0] == dest:
                 log('Got response from destination, TTL high enough', logging)
                 result = OK
