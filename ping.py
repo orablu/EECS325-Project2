@@ -34,6 +34,7 @@ def main(addresses, port=PORT, timeout=TIMEOUT, logging=LOGGING):
             print RESULT.format(address, rtt, ttl)
         else:
             print RESULT_ERROR.format(address)
+        log('', logging)
 
 
 def ping(address, port=PORT, timeout=TIMEOUT, logging=LOGGING):
@@ -55,12 +56,12 @@ def ping(address, port=PORT, timeout=TIMEOUT, logging=LOGGING):
     while min_ttl < max_ttl and result is not ERROR:
         ttl = (min_ttl + max_ttl) // 2
         result, rtt, _ = getRTT(address, ttl, port, timeout, logging)
-        elif result is TOOLOW:
+        if result is TOOLOW:
             min_ttl = ttl + 1
             last_rtt = rtt
             last_ttl = ttl
         elif result is OK:
-            max_ttl = ttl - 1
+            max_ttl = ttl
             last_rtt = rtt
             last_ttl = ttl
     result, rtt, ttl = getRTT(address, ttl, port, timeout, logging)
