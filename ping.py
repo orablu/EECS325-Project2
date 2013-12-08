@@ -13,26 +13,27 @@ LOGGING = False
 MAX_TTL = 128
 MILLISECONDS = 1000
 PORT = 33434
-HEADER = 'RTT\tTTL'
-RESULT = '{0:.1f}\t{1}'
-RESULT_ERROR = RESULT.format(-1., -1.)
+HEADER = 'Address,RTT,TTL'
+RESULT = '{},{:.1f},{}'
+RESULT_ERROR = '{},ERROR,ERROR'
 TTL = 16
 TIMEOUT = 30
 
 
 def main(addresses, port=PORT, timeout=TIMEOUT, logging=LOGGING):
-    log('Starting {}:\n  Port: {}\n  Timt: {}\n  Sites:'.format(__file__, port, timeout), logging)
+    log('Starting {}:\nPort: {}\nTimt: {}\nSites:'.format(__file__, port, timeout), logging)
     if logging:
         for address in addresses:
             log('  {}'.format(address))
+    log('------------------------------------------', logging)
     print HEADER
     for address in addresses:
         log('Pinging {}'.format(address), logging)
         rtt, ttl = ping(address, port, timeout, logging)
         if rtt is not ERROR:
-            print RESULT.format(rtt, ttl)
+            print RESULT.format(address, rtt, ttl)
         else:
-            print RESULT_ERROR
+            print RESULT_ERROR.format(address)
 
 
 def ping(address, port=PORT, timeout=TIMEOUT, logging=LOGGING):
@@ -98,7 +99,8 @@ def getRTT(address, ttl=TTL, port=PORT, timeout=TIMEOUT, logging=LOGGING):
     start_time = times()[4]
     recv.bind(('', port))
     log('{0}: Sending to {1}:{2} with TTL of {3}...'.format(start_time, dest, port, ttl), logging)
-    send.sendto('', (dest, port))
+    ping = "\x08\x00M5\x00\x01\x00&abcdefghijklmnopqrstuvwabcdefghi"
+    send.sendto(ping, (dest, port))
     try:
         log('Waiting for response...', logging)
         recv.setblocking(0)
@@ -123,11 +125,11 @@ def getRTT(address, ttl=TTL, port=PORT, timeout=TIMEOUT, logging=LOGGING):
                 log('Got response from destination, TTL high enough', logging)
                 result = OK
             else:
-                log('Got response from {0}'.format(response), logging)
+                log('Got response from {0}'.format(addr[0]), logging)
                 result = TOOLOW
     except socket.error:
         log('Error: connecting to socket failed.', logging)
-
+        return ERROR, ERROR, ERROR
     finally:
         send.close()
         recv.close()
