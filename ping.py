@@ -4,13 +4,13 @@ from os import times
 
 # Result codes for the getRTT method
 ERROR = -1
-UNKNOWN = 0
 TOOLOW = 1
 OK = 2
 
 # Constants
 BUFSIZE = 512
 LOGGING = False
+MAX_TTL = 128
 MILLISECONDS = 1000
 PORT = 33434
 HEADER = 'RTT\tTTL'
@@ -21,7 +21,10 @@ TIMEOUT = 30
 
 
 def main(addresses, port=PORT, timeout=TIMEOUT, logging=LOGGING):
-    log('Starting {} with port {}'.format(__file__, port))
+    log('Starting {}:\n  Port: {}\n  Timt: {}\n  Sites:'.format(__file__, port, timeout), logging)
+    if logging:
+        for address in addresses:
+            log('  {}'.format(address))
     print HEADER
     for address in addresses:
         log('Pinging {}'.format(address), logging)
@@ -37,14 +40,17 @@ def ping(address, port=PORT, timeout=TIMEOUT, logging=LOGGING):
     Pings an address and returns the rtt and ttl.
     '''
     ttl = TTL
-    result, rtt, _ = getRTT(address, ttl, port, timeout, logging)
+    result, last_rtt, last_ttl = getRTT(address, ttl, port, timeout, logging)
     if result is ERROR:
         return ERROR, ERROR
-    while result is TOOLOW and ttl < 128:
+    while result is not OK and ttl < MAX_TTL:
         ttl = ttl * 2
         result, rtt, _ = getRTT(address, ttl, port, timeout, logging)
-        if result is ERROR:
-            return ERROR, ERROR
+        if result is not ERROR:
+            last_rtt = rtt
+            last_ttl = ttl
+    if result is ERROR:
+        return ERROR, ERROR
     last_ttl = ttl / 2
     while True:
         difference = (last_ttl - ttl) // 2
@@ -59,10 +65,14 @@ def ping(address, port=PORT, timeout=TIMEOUT, logging=LOGGING):
             ttl = ttl + difference
             last_ttl = temp
         result, rtt, _ = getRTT(address, ttl, port, timeout, logging)
-        if result is ERROR:
-            return ERROR, ERROR
-    _, rtt, ttl = getRTT(address, ttl, port, timeout, logging)
-    return rtt, ttl
+        if result is not ERROR:
+            last_rtt = rtt
+            last_ttl = ttl
+    result, rtt, ttl = getRTT(address, ttl, port, timeout, logging)
+    if result is not ERROR:
+        last_rtt = rtt
+        last_ttl = ttl
+    return last_rtt, last_ttl
 
 
 def getRTT(address, ttl=TTL, port=PORT, timeout=TIMEOUT, logging=LOGGING):
@@ -109,7 +119,12 @@ def getRTT(address, ttl=TTL, port=PORT, timeout=TIMEOUT, logging=LOGGING):
                 result = TOOLOW
         except:
             log('Got response from {0}'.format(addr[0]), logging)
-            result = TOOLOW
+            if addr[0] == dest:
+                log('Got response from destination, TTL high enough', logging)
+                result = OK
+            else:
+                log('Got response from {0}'.format(response), logging)
+                result = TOOLOW
     except socket.error:
         log('Error: connecting to socket failed.', logging)
 
@@ -127,8 +142,9 @@ def log(message, logging=True):
     if logging:
         print message
 
-from sys import argv
+from sys import argv, stdin
 if __name__ == '__main__':
+    sites = []
     logging = False
     port = PORT
     timeout = TIMEOUT
@@ -145,4 +161,9 @@ if __name__ == '__main__':
             i = i + 2
         else:
             break
-    main(argv[i:], port, timeout, logging)
+    if len(argv) is i:
+        for site in stdin:
+            sites.append(site.strip())
+    else:
+        sites = argv[i:]
+    main(sites, port, timeout, logging)
