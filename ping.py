@@ -9,35 +9,42 @@ TOOLOW = 1
 OK = 2
 
 # Constants
-RESULT = 'RTT,{0},TTL,{1}'
-RESULT_ERROR = RESULT.format('', '')
-STARTING_TTL = 16
-PORT = 33434
 BUFSIZE = 512
-TIME_EXCEEDED = ''
+LOGGING = False
+MILLISECONDS = 1000
+PORT = 33434
+HEADER = 'RTT\tTTL'
+RESULT = '{0:.1f}\t{1}'
+RESULT_ERROR = RESULT.format(-1., -1.)
+TTL = 16
+TIMEOUT = 30
 
 
-def main(addresses, logging=False):
+def main(addresses, port=PORT, timeout=TIMEOUT, logging=LOGGING):
+    log('Starting {} with port {}'.format(__file__, port))
+    print HEADER
     for address in addresses:
         log('Pinging {}'.format(address), logging)
-        rtt, ttl = ping(address, PORT, logging)
+        rtt, ttl = ping(address, port, timeout, logging)
         if rtt is not ERROR:
             print RESULT.format(rtt, ttl)
         else:
             print RESULT_ERROR
 
 
-def ping(address, port, logging=False):
+def ping(address, port=PORT, timeout=TIMEOUT, logging=LOGGING):
     '''
     Pings an address and returns the rtt and ttl.
     '''
-    ttl = STARTING_TTL
-    result, rtt, _ = getRTT(ttl, address, port, logging)
-    while result is TOOLOW:
+    ttl = TTL
+    result, rtt, _ = getRTT(address, ttl, port, timeout, logging)
+    if result is ERROR:
+        return ERROR, ERROR
+    while result is TOOLOW and ttl < 128:
         ttl = ttl * 2
-        result, rtt, _ = getRTT(ttl, address, port, logging)
+        result, rtt, _ = getRTT(address, ttl, port, timeout, logging)
         if result is ERROR:
-            return None, None
+            return ERROR, ERROR
     last_ttl = ttl / 2
     while True:
         difference = (last_ttl - ttl) // 2
@@ -51,14 +58,14 @@ def ping(address, port, logging=False):
             temp = ttl
             ttl = ttl + difference
             last_ttl = temp
-        result, rtt, _ = getRTT(ttl, address, port, logging)
+        result, rtt, _ = getRTT(address, ttl, port, timeout, logging)
         if result is ERROR:
             return ERROR, ERROR
-    _, rtt, ttl = getRTT(ttl, address, port, logging)
+    _, rtt, ttl = getRTT(address, ttl, port, timeout, logging)
     return rtt, ttl
 
 
-def getRTT(ttl, address, port, logging=False):
+def getRTT(address, ttl=TTL, port=PORT, timeout=TIMEOUT, logging=LOGGING):
     '''
     Attempts to get an RTT to the given address with the given TTL.
     '''
@@ -81,17 +88,17 @@ def getRTT(ttl, address, port, logging=False):
     start_time = times()[4]
     recv.bind(('', port))
     log('{0}: Sending to {1}:{2} with TTL of {3}...'.format(start_time, dest, port, ttl), logging)
-    #send.sendto(bytes('', 'utf-8'), (dest, port))
     send.sendto('', (dest, port))
     try:
         log('Waiting for response...', logging)
         recv.setblocking(0)
-        ready = select.select([recv], [], [], 10)
+        ready = select.select([recv], [], [], timeout)
+        addr = None
         if ready[0]:
             _, addr = recv.recvfrom(BUFSIZE)
         if not addr:
             log('Error: attempt timed out', logging)
-            return ERROR, 0, 0
+            return ERROR, ERROR, ERROR
         try:
             response = socket.gethostbyaddr(addr[0])[0]
             if response == address or addr[0] == dest:
@@ -101,7 +108,7 @@ def getRTT(ttl, address, port, logging=False):
                 log('Got response from {0}'.format(response), logging)
                 result = TOOLOW
         except:
-            log('Could not resolve {0}'.format(addr), logging)
+            log('Got response from {0}'.format(addr[0]), logging)
             result = TOOLOW
     except socket.error:
         log('Error: connecting to socket failed.', logging)
@@ -113,7 +120,7 @@ def getRTT(ttl, address, port, logging=False):
     # Stop counting and get the result and RTT
     end_time = times()[4]
     log('{0}: Finished ping attempt.'.format(end_time), logging)
-    return result, end_time - start_time, ttl
+    return result, (end_time - start_time) * MILLISECONDS, ttl
 
 
 def log(message, logging=True):
@@ -122,7 +129,20 @@ def log(message, logging=True):
 
 from sys import argv
 if __name__ == '__main__':
-    if argv[1] == '--log' or argv[1] == '-l':
-        main(argv[2:], True)
-    else:
-        main(argv[1:])
+    logging = False
+    port = PORT
+    timeout = TIMEOUT
+    i = 1
+    while i < len(argv):
+        if argv[i] == '-l' or argv[i] == '--log':
+            logging = True
+            i = i + 1
+        elif argv[i] == '-p' or argv[i] == '--port':
+            port = int(argv[i+1])
+            i = i + 2
+        elif argv[i] == '-t' or argv[i] == '--timeout':
+            timeout = int(argv[i+1])
+            i = i + 2
+        else:
+            break
+    main(argv[i:], port, timeout, logging)
