@@ -22,8 +22,8 @@ HEADER = 'Address,RTT,TTL'
 RESULT = '{},{:.1f},{}'
 RESULT_ERROR = '{},ERROR,ERROR'
 HELP = '''Command-line use:
- python {0} probe [-l|--log] [-p|--port port] [-t|--timeout timeout] site1 site2 site3...
- python {0} probe [-l|--log] [-p|--port port] [-t|--timeout timeout] < sites'''.format(__file__)
+ python {0} [-l|--log] [-p|--port port] [-t|--timeout timeout] site1 site2 site3...
+ python {0} [-l|--log] [-p|--port port] [-t|--timeout timeout] < sites'''.format(__file__)
 
 # Module environment variables
 PORT = 33434

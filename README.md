@@ -11,8 +11,8 @@ environment variables.
 Help will be displayed if you just run `python probe.py`.
 
 ## Command-line use:
-    python {0} probe [-l|--log] [-p|--port port] [-t|--timeout timeout] site1 site2 site3...
-    python {0} probe [-l|--log] [-p|--port port] [-t|--timeout timeout] < sites
+    python probe.py [-l|--log] [-p|--port port] [-t|--timeout timeout] site1 site2 site3...
+    python probe.py [-l|--log] [-p|--port port] [-t|--timeout timeout] < sites
 
 ## Module use:
     from probe import probe
