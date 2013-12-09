@@ -116,7 +116,7 @@ def getRTT(address, ttl=TTL, port=PORT, timeout=TIMEOUT, logging=LOGGING):
     try:
         dest = socket.gethostbyname(address)
     except:
-        return ERROR, 0, 0
+        return ERROR, ERROR
     recv = socket.socket(socket.AF_INET,
                          socket.SOCK_RAW,
                          socket.getprotobyname('icmp'))
@@ -143,7 +143,7 @@ def getRTT(address, ttl=TTL, port=PORT, timeout=TIMEOUT, logging=LOGGING):
             _, addr = recv.recvfrom(BUFSIZE)
         if not addr:
             log('Error: attempt timed out', logging)
-            return ERROR, ERROR, ERROR
+            return ERROR, ERROR
         try:
             response = socket.gethostbyaddr(addr[0])[0]
             if response == address or addr[0] == dest:
@@ -161,7 +161,7 @@ def getRTT(address, ttl=TTL, port=PORT, timeout=TIMEOUT, logging=LOGGING):
                 result = TOOLOW
     except socket.error:
         log('Error: connecting to socket failed.', logging)
-        return ERROR, ERROR, ERROR
+        return ERROR, ERROR
     finally:
         send.close()
         recv.close()
