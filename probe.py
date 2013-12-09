@@ -22,8 +22,8 @@ HEADER = 'Address,RTT,TTL'
 RESULT = '{},{:.1f},{}'
 RESULT_ERROR = '{},ERROR,ERROR'
 HELP = '''Command-line use:
-python {} probe [-l|--log] [-p|--port port] [-t|--timeout timeout] site1 site2 site3...
-python {} probe [-l|--log] [-p|--port port] [-t|--timeout timeout] < sites'''
+ python {0} probe [-l|--log] [-p|--port port] [-t|--timeout timeout] site1 site2 site3...
+ python {0} probe [-l|--log] [-p|--port port] [-t|--timeout timeout] < sites'''.format(__file__)
 
 # Module environment variables
 PORT = 33434
@@ -68,7 +68,8 @@ def probe(address, port=PORT, timeout=TIMEOUT, logging=LOGGING):
     """
     # Send an initial probe
     ttl = TTL
-    result, last_rtt, last_ttl = getRTT(address, ttl, port, timeout, logging)
+    last_ttl = ERROR
+    result, last_rtt = getRTT(address, ttl, port, timeout, logging)
     if result is ERROR:
         return ERROR, ERROR
 
@@ -200,11 +201,10 @@ if __name__ == '__main__':
             break
 
     # Read in the sites to probe
-    if len(argv) is i:
+    sites = argv[i:]
+    if (select.select([stdin,],[],[],0)[0]):
         for site in stdin:
             sites.append(site.strip())
-    else:
-        sites = argv[i:]
 
     # Only start if we have sites to probe
     if len(sites) > 0:
